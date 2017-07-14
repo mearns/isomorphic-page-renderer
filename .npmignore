@@ -1,0 +1,7 @@
+coverage/
+src/
+test/
+.nyc_output/
+.editorconfig
+.gitattributes
+.gitignore
