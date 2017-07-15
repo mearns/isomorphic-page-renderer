@@ -52,7 +52,7 @@ export function main() {
         .option('h', {
             alias: 'host',
             description: 'The host to bind to.',
-            default: '',
+            default: 'localhost',
             string: true
         })
         .strict()

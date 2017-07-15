@@ -2,6 +2,7 @@ coverage/
 src/
 test/
 .nyc_output/
+examples/
 .editorconfig
 .gitattributes
 .gitignore
