@@ -194,3 +194,63 @@ export function getHtml(requestDetails) {
     });
 }
 ```
+
+The `getInitialHtml` method on the page will generate the HTML content for the server to send as
+the initial page render to the client. It relies on a provided `render` method to _actually_ generate
+the HTML string (e.g., from a template file), but does a lot of the heavy lifting to render the page's
+component tree, as well as serializing the intial state to the page so that the client can load
+it for rendering.
+
+The `dispatchSetupEvents` function that is passed in is used to gather whatever information you need to
+initialize the state store, and then dispatch the appropriate events. This would typically
+mean doing things like fetching from your database, session store, or upstream services.
+
+The function will be called with a `dispatch` function that, by default, is the
+[dispatch method of the Redux state store](http://redux.js.org/docs/api/Store.html#dispatch).
+However, you can override methods in `IsomorphicPageRenderer` to support something other than
+Redux, such as `IsomorphicPageRenderer::createStore`, `IsomorphicPageRenderer::getStoreState`,
+and `IsomorphicPageRenderer::getDispatch`.
+
+The function can return a Promise for any asynchronous work that needs to be done.
+
+### `client-entry.js`
+
+The `client-entry.js` module is used to provide an entry point to the client-side script
+that runs to take over rendering in the browser. In the simplest case, this module might
+look something like:
+
+```javascript
+import {getPage} from './page';
+
+getPage().clientMain();
+```
+
+This module would typically be your entry point for the [webpack](https://webpack.github.io/)
+bundle you server and load on the page.
+
+The `clientMain` method on the page deserializes the state from the page and render's
+the page's component tree to the target element in the DOM, to replace what was initially
+put there by the server.
+
+It's often useful to know that you're rendering on the client versus the server, so
+`clientMain` can take an optional callback function that can be invoked to futher modify the
+state store after it has been deserialized from the page.
+
+It's considered best practice when doing isomorphic rendering to have your initial render on
+the client-side be _identical_ to the server-side render. In fact, React even issues a warning
+to your console if the checksums differ. To avoid this, the callback you pass to `clientMain`
+is only invoked _after_ the initial client-side rendering is done with the initial state.
+
+### Why Three Modules?
+
+The primary reason for the three different modules is to isolate server-side code and client-side
+code. This somewhat flies in the face of typical isomorphic concepts, where the same code is used
+client-side and server-side. However, there is often code required for the initial state setup
+on the server-side that _can't_ run on the client-side. For instance, connecting to an internal
+upstream service or database cannot typically be done from the client side. In some cases, even just
+trying to include a module in your front-end bundle will fail (e.g., if it's native code).
+
+Therefore, separating the server-side-only code into it's own module that doesn't need to be
+included in any client-side modules is important. Separating out the `page.js` module is just
+basic reuse so that both the client-side and server-side modules can import it an make use of
+the same code.
