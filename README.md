@@ -57,7 +57,7 @@ function render({renderedState, pageContent, containerElementId}) {
         <div id='${containerElementId}'>${pageContent}</div>
 
         <!-- The encoded initial state, which the client-side script will read -->
-        ${renderedState}
+        ${embeddableState}
 
         <!-- The client-side script -->
         <script type='text/javascript' src='your-webpack-bundle.js'></script>
