@@ -254,3 +254,53 @@ Therefore, separating the server-side-only code into it's own module that doesn'
 included in any client-side modules is important. Separating out the `page.js` module is just
 basic reuse so that both the client-side and server-side modules can import it an make use of
 the same code.
+
+## API
+
+### `IsomorphicPageRenderer`
+
+#### `new IsomorphicPageRenderer({reducer, pageComponent, [containerElementId], [initialStateElementId]})`
+
+Constructor for a new IsomorphicPageRenderer object.
+
+*   `reducer`: A reducer function that will be used to
+    [create a new redux state store](http://redux.js.org/docs/api/createStore.html#createstorereducer-preloadedstate-enhancer).
+*   `pageComponent`: A React component that will be rendered as the primary content of
+    the page. For react-redux, it should be a
+    [connected component](https://github.com/reactjs/react-redux/blob/master/docs/api.md#connectmapstatetoprops-mapdispatchtoprops-mergeprops-options) if necessary, but it will automatically be wrapped
+    in a [`Provider`](https://github.com/reactjs/react-redux/blob/master/docs/api.md#provider-store)
+    component with a state store created with the given reducer.
+*   `containerElementId`: Optional, the ID for the container element into which the `pageComponent`
+    will be rendered. The `render` function that you'll pass to the `clientMain` method will need
+    to make sure the generated HTML uses this same ID for that element. For convenience, this
+    value will be passed in to the render function as part of the context. The default value is `'container'`.
+*   `initialStateElementId`: Optional, the ID for the element into which the encoded initial state will
+    be embedded. Unlike `containerElementId`, the render function passed to `clientMain` doesn't need
+    to render this directly, the `renderEmbeddableState` method will generate this and pass it to
+    `render` in the `embeddableState` context value. The default value is `'initial-state'`.
+
+#### `::getInitialHtml({dispatchSetupEvents, render})`
+
+Invoked to render the the initial HTML content of the page. This will create a redux state store
+with the reducer function passed to the constructor, initialize it by calling the `dispatchSetupEvents`
+function, render the object's `pageComponent` inside a react-redux `<Provider>` component with the
+state store attached, encode the state's initial store into an HTML-embeddable string, and finally
+pass the generated content to the provided `render` function to actually generate the HTML.
+
+*   `dispatchSetupEvents(dispatch) -> Promise<*>`: A function that will be called with the
+    [`dispatch`](http://redux.js.org/docs/api/Store.html#dispatch) method of the constructed
+    state store, ostensibly to dispatch any actions required to setup the state store for
+    the initial render. It can return synchronously, or return a _thenable_ if there is
+    asynchronous work that needs to complete before the store is setup.
+*   `render({pageContent, embeddableState, initialState, containerElementId, initialStateElementId})`:
+    A function that will take the generated content and actually produce the HTML for the page as a string.
+    For instance, this might be a compiled template function. It will be invoked with a context object having
+    the following properties:
+    *   `pageContent`: The rendered `pageComponent`.
+    *   `embeddableState`: The initial state of the store, encoded and rendered to a string that
+        can be embedded directly into the body of HTML document. Specifically, the default implementation
+        of `IsomorphicPageRenderer` encodes this to HTML-safe JSON and embeds it into a `<script>` element
+        with the `initialStateElementId` as the element ID.
+    *   `initialState`: The initial state of the store, after `dispatchSetupEvents` settles, as an object.
+        This is for convenience so you can include state-content directly in your rendered content
+        outside of the `pageComponent`, in case that's useful.
