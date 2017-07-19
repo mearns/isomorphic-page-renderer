@@ -1,7 +1,7 @@
 import express from 'express';
 import yargs from 'yargs';
 import Promise from 'bluebird';
-import {getHtml} from './pages/index/server-page';
+import {getHtml, getApiResponse} from './pages/index/server-page';
 
 const SERVER_ERROR = 500;
 
@@ -16,6 +16,17 @@ function createServer() {
             })
             .catch((error) => {
                 response.status(SERVER_ERROR).type('text/plain').send(error);
+                throw error;
+            });
+    });
+    server.get('/api/', (request, response) => {
+        const {userName, counter} = request.query;
+        getApiResponse({userName, counter})
+            .then((state) => {
+                response.json(state);
+            })
+            .catch((error) => {
+                response.status(SERVER_ERROR).json({error: {message: error.message}});
                 throw error;
             });
     });

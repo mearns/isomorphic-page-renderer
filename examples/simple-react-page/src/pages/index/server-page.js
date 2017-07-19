@@ -3,8 +3,14 @@ import {setUserName, setCounter, setDefaultCounterSet} from './reducer';
 
 export function getHtml({userName, counter}) {
     return getPage().getInitialHtml({
-        dispatchSetupEvents: dispatchSetupEvents.bind(null, {userName, counter}),
+        dispatchSetupEvents: (dispatch) => dispatchSetupEvents({userName, counter}, dispatch),
         render
+    });
+}
+
+export function getApiResponse({userName, counter}) {
+    return getPage().getCurrentState({
+        dispatchSetupEvents: (dispatch) => dispatchSetupEvents({userName, counter}, dispatch),
     });
 }
 

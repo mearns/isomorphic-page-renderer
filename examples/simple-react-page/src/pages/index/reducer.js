@@ -12,7 +12,8 @@ const DECREMENT_VALUE = 1;
 const DEFAULT_STATE = {
     counter: 0,
     defaultCounterSet: false,
-    interactive: false
+    interactive: false,
+    serverValue: null
 };
 
 export function reducer(state = {...DEFAULT_STATE}, {type, payload}) {

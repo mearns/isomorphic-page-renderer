@@ -27,7 +27,7 @@ export class IsomorphicPageRenderer {
         this.containerElementId = containerElementId;
         this.initialStateElementId = initialStateElementId;
 
-        this.renderStateToString = Promise.method(this.renderStateToString.bind(this));
+        this.renderEmbeddableState = Promise.method(this.renderEmbeddableState.bind(this));
         this.loadStateFromDoc = Promise.method(this.loadStateFromDoc.bind(this));
         this.createStore = Promise.method(this.createStore.bind(this));
         this.getDispatch = Promise.method(this.getDispatch.bind(this));
@@ -39,13 +39,13 @@ export class IsomorphicPageRenderer {
 
     /**
      * Used to encode a state value to a string that can be safely included in the page.
-     * This renders the entire HTML content to put directly on the page, e.g., already
+     * This renders the entire HTML fragment to put directly on the page, e.g., already
      * inside a `<script>` tag, HTML comment, or whatever.
      *
      * @bound
      * @async-safe
      */
-    renderStateToString(state) {
+    renderEmbeddableState(state) {
         return `<script type='application/json' id='${this.initialStateElementId}'>`
             + `${htmlSafeStringify(state)}</script>`;
     }
@@ -161,8 +161,8 @@ export class IsomorphicPageRenderer {
      * with the following properties set:
      *
      * * `initialState`:    The state of the state store following setup as described above.
-     * * `rendered`:        This is the `initialState` rendered with this object's `renderStateToString`
-     *                      method, ready to be included in the page.
+     * * `embeddableState`: This is the `initialState`, encoded and rendered to an embeddable
+     *                      HTML fragment string with the `renderEmbeddableState` method.
      * * `pageContent`:     This is the React content of the page, rendered to a string.
      * * `containerElementId`:  The id of the container element into which the `pageContent` should
      *                          be rendered. This comes from the instance property of the same name.
@@ -185,36 +185,55 @@ export class IsomorphicPageRenderer {
      * @return {any}                                Returns a Promise that fulfills with the result of
      *                                              the call to `render`.
      */
-    getInitialHtml({dispatchSetupEvents = NOOP, render}) {
+    getInitialHtml({dispatchSetupEvents, render}) {
 
-        const initializeStateStore = (stateStore) => {
-            return this.getDispatch(stateStore)
-                .then(Promise.method(dispatchSetupEvents))
-                .then(() => stateStore);
-        };
-
-        const getState = (stateStore) => {
+        const renderStateStore = (stateStore) => {
             return this.getStoreState(stateStore)
                 .then((state) => {
-                    return this.renderStateToString(state)
-                        .then((renderedState) => ({state, renderedState, stateStore}));
+                    return this.renderEmbeddableState(state)
+                        .then((embeddableState) => ({state, embeddableState, stateStore}));
                 });
         };
 
-        const renderPage = ({state: initialState, renderedState, stateStore}) => {
+        const renderPage = ({state: initialState, embeddableState, stateStore}) => {
             return this.renderComponentTreeToString(stateStore)
                 .then((pageContent) => render({
-                    renderedState,
+                    embeddableState,
                     initialState,
                     pageContent,
                     ...(pick(this, ['containerElementId', 'initialStateElementId']))
                 }));
         };
 
-        return this.createStore()
-            .then(initializeStateStore)
-            .then(getState)
+        return this._getInitializedStateStore({dispatchSetupEvents})
+            .then(renderStateStore)
             .then(renderPage);
+    }
+
+    /**
+     * This does the leg work of creating and initializing a state store for
+     * `getInitialHtml` and `getCurrentState`.
+     *
+     * Returns the state store.
+     */
+    _getInitializedStateStore({dispatchSetupEvents = NOOP}) {
+        return this.createStore()
+            .tap((stateStore) => {
+                return this.getDispatch(stateStore)
+                    .then(Promise.method(dispatchSetupEvents));
+            });
+    }
+
+    /**
+     * Returns the initial state (as a JavaScript value, not encoded). This is
+     * in a similar vein as `getInitialHtml`, but instead of being used for rendering
+     * the HTML on the server side, it's typically used for serving an API that the
+     * client-side script can hit with AJAX requests to get an updated state
+     * based on any changes on the server-side.
+     */
+    getCurrentState({dispatchSetupEvents}) {
+        return this._getInitializedStateStore({dispatchSetupEvents})
+            .then(this.getStoreState);
     }
 
     /**
