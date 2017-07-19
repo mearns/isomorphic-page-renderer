@@ -12,7 +12,7 @@ this package. This is _not_ the recommended pattern, nor does it represent
 best practices in general. But it is demonstrative of the general idea.
 
 For a more thorough example that generally follows the suggested pattern, see
-<examples/simple-react-page/>.
+[./examples/simple-react-page/](examples/simple-react-page/).
 
 First, the script that does the server-side rendering:
 
@@ -279,7 +279,7 @@ Constructor for a new IsomorphicPageRenderer object.
     to render this directly, the `renderEmbeddableState` method will generate this and pass it to
     `render` in the `embeddableState` context value. The default value is `'initial-state'`.
 
-#### `::getInitialHtml({dispatchSetupEvents, render})`
+#### `::getInitialHtml({[dispatchSetupEvents], render}) -> Promise<String>`
 
 Invoked to render the the initial HTML content of the page. This will create a redux state store
 with the reducer function passed to the constructor, initialize it by calling the `dispatchSetupEvents`
@@ -287,11 +287,15 @@ function, render the object's `pageComponent` inside a react-redux `<Provider>` 
 state store attached, encode the state's initial store into an HTML-embeddable string, and finally
 pass the generated content to the provided `render` function to actually generate the HTML.
 
-*   `dispatchSetupEvents(dispatch) -> Promise<*>`: A function that will be called with the
+Returns a Promise that will fulfill with the generated HTML content, or reject on error.
+
+*   `dispatchSetupEvents(dispatch) -> Promise<*>`: Optional, a function that will be called with the
     [`dispatch`](http://redux.js.org/docs/api/Store.html#dispatch) method of the constructed
     state store, ostensibly to dispatch any actions required to setup the state store for
     the initial render. It can return synchronously, or return a _thenable_ if there is
     asynchronous work that needs to complete before the store is setup.
+    Of not given, then no initialization of the state store will be done beyond what is done by the
+    `createStore` method itself.
 *   `render({pageContent, embeddableState, initialState, containerElementId, initialStateElementId})`:
     A function that will take the generated content and actually produce the HTML for the page as a string.
     For instance, this might be a compiled template function. It will be invoked with a context object having
@@ -304,3 +308,52 @@ pass the generated content to the provided `render` function to actually generat
     *   `initialState`: The initial state of the store, after `dispatchSetupEvents` settles, as an object.
         This is for convenience so you can include state-content directly in your rendered content
         outside of the `pageComponent`, in case that's useful.
+    *   `containerElementId`: The ID that should be used for the container element into which the
+        `pageContent` should be placed. This ID is important because the `clientMain` method will rely
+        on this to find the element into which it should render the `pageComponent`.
+    *   `initialStateElementId`: The ID of the element into which the initial state has been embedded.
+        Your `render` function probably doesn't actually need this, since it is already included in
+        the `embeddableState`.
+
+#### `::getCurrentState({[dispatchSetupEvents]}) -> Promise<Object>`
+
+Invoked to support an API endpoint that returns the current state as determined by the server. For example,
+your client-side script (the one that invokes `::clientMain`) might setup an AJAX poll of this API endpoint
+and use the response to update the client-side state store.
+
+Returns a Promise that will fulfill with state of the initialized store.
+
+*   `dispatchSetupEvents(dispatch) -> Promise<*>`: Just like the argument to `getInitialHtml`, this is a function
+    which will be invoked to setup the state store.
+
+
+#### `::clientMain({[dispatchClientSetupEvents]}) -> Promise<StateStore>`
+
+Invoked from your client side script to take over rendering of the page on the client side. This will
+load the initial state that should be embedded in the page (as specified by the `initialStateElementId`)
+and use it to initialize a client-side state store, then render the `pageComponent` into the container
+specified by `containerElementId`, replacing the server-side static rendering.
+
+Returns a Promise that fulfills after the client-side rendering is completed with the initialized
+client-side state store (and _after_ the provided `dispatchClientSetupEvents` function settles), in case you need
+to do anything else with it.
+
+*   `dispatchClientSetupEvents(dispatch) -> Promise<*>`: Similar to the `dispatchSetupEvents` argument to
+    `::getCurrentState` and `::getInitialHtml`, this is a function that will be invoked with a dispatch function
+    for the state store in order to do any additional setup of the state that is specific to the client.
+
+    This is useful if you want to set some state flag to indicate that you're rendering on the client. For instance,
+    you may choose not to render some interactive content on the server side, or render them using traditional HTML
+    forms, to support users who do not have JavaScript. For users who do support JavaScript, this function will be
+    invoked to set the "on-client" flag in the state and the client-side rendering can replace these with
+    more dynamic controls, such as forms that submit via AJAX.
+
+    Note that this function won't be invoked until _after_ the component is rendered with the initial state loaded
+    from the page. This should ensure that the initial client-side is identical to the server-side rendering, which
+    is considered a best practice for isomorphic rendering. However, any actions dispatched by this function that
+    lead to a change in the state store should lead to your component being re-rendered through the react-redux
+    connection.
+
+    This is an async-safe function, so it can return synchronously or return a thenable if there are any actions
+    that we need to wait for. The Promise returned by the `clientMain` method won't settle until the returned
+    thenable settles.

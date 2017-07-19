@@ -27,7 +27,7 @@ function dispatchSetupEvents({userName, counter}, dispatch) {
     }
 }
 
-function render({renderedState, pageContent, containerElementId}) {
+function render({embeddableState, pageContent, containerElementId}) {
     return `<!DOCTYPE html>
 <html lang='en'>
     <head>
@@ -40,7 +40,7 @@ function render({renderedState, pageContent, containerElementId}) {
         <!-- End server-side rendered page content -->
 
         <!-- And here is the initial state as rendered by the server, for the client to load: -->
-        ${renderedState}
+        ${embeddableState}
         <!-- End initial state -->
 
         <!-- Here's the Webpack bundle that includes the client-side entry to take over rendering of the page -->
