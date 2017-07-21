@@ -3,7 +3,8 @@
 
 A node.js package for slightly simplifying _isomorphic rendering_ of web pages,
 primarily focused around [React](https://facebook.github.io/react/) interfaces with
-a [redux](http://redux.js.org/) state-store (but not limited to either of these).
+a [redux](http://redux.js.org/) state-store (but not limited to either of these, if
+you extend the class).
 
 ## Example Usage
 
@@ -13,8 +14,6 @@ best practices in general. But it is demonstrative of the general idea.
 
 For a more thorough example that generally follows the suggested pattern, see
 [./examples/simple-react-page/](examples/simple-react-page/).
-
-First, the script that does the server-side rendering:
 
 ```javascript
 import {IsomorphicPageRenderer} from 'isomorphic-page-renderer';
@@ -50,7 +49,7 @@ function dispatchSetupEvents(dispatch) {
 // will give you the hard parts, you just need to decide where to put it in the HTML.
 // this would typically be a compiled template, for instance, but here we're just
 // using a trivial string literal for simplicity and clarity.
-function render({renderedState, pageContent, containerElementId}) {
+function render({embeddableState, pageContent, containerElementId}) {
     return `<html>
     <body>
         <!-- Your rendered PageComponent -->
@@ -59,7 +58,7 @@ function render({renderedState, pageContent, containerElementId}) {
         <!-- The encoded initial state, which the client-side script will read -->
         ${embeddableState}
 
-        <!-- The client-side script -->
+        <!-- The client-side script, which should call clientSideMain, below -->
         <script type='text/javascript' src='your-webpack-bundle.js'></script>
     </body>
 </html>
@@ -71,10 +70,16 @@ export function serverSideMain() {
     // ...
     app.get('/page', (request, response) => {
         page.getInitialHtml({
-            dispatchSetupEvents
+            dispatchSetupEvents,
             render
         })
-            .then((html) => response.status(200).type('html').send(html));
+            .then((html) => response.type('html').send(html));
+    });
+
+    // We can also setup an API to fetch the state, if we want.
+    app.get('/api/page-state', (request, response) => {
+        page.getCurrentState({dispatchSetupEvents})
+            .then((state) => response.json(state));
     });
 
     // ...
@@ -117,7 +122,7 @@ the usage a little for a variety of non-isomorphic rendering. For instance, you
 can just as easily skip the server-side rendering entirely and just send up
 static assets, doing all the rendering on the client-side, still using this package
 to simplify some things. Alternatively, you could have the initial state setup on
-the server and send to the client, but skip the actual rendering on the server.
+the server and sent to the client, but skip the actual rendering on the server.
 
 Or, you could do the server-side rendering, but skip the client-side rendering.
 
@@ -155,6 +160,7 @@ dependencies that work on both server-side and client-side.
 ```javascript
 import {reducer} from './reducer';
 import {PageComponent} from './views/page-component';
+import {IsomorphicPageRenderer} from 'isomorphic-page-renderer';
 
 export function getPage() {
     return new IsomorphicPageRenderer({
@@ -193,6 +199,8 @@ export function getHtml(requestDetails) {
         render
     });
 }
+
+// ...
 ```
 
 The `getInitialHtml` method on the page will generate the HTML content for the server to send as
@@ -211,7 +219,7 @@ However, you can override methods in `IsomorphicPageRenderer` to support somethi
 Redux, such as `IsomorphicPageRenderer::createStore`, `IsomorphicPageRenderer::getStoreState`,
 and `IsomorphicPageRenderer::getDispatch`.
 
-The function can return a Promise for any asynchronous work that needs to be done.
+The function can return a Promise to account for any asynchronous work that needs to be done.
 
 ### `client-entry.js`
 
@@ -226,7 +234,9 @@ getPage().clientMain();
 ```
 
 This module would typically be your entry point for the [webpack](https://webpack.github.io/)
-bundle you server and load on the page.
+bundle you serve and load on the page. Note that the `IsomorphicPageRenderer` instance has
+no knowledge of this script, so it is up to your `render` function to make sure the script
+is loaded on the page.
 
 The `clientMain` method on the page deserializes the state from the page and render's
 the page's component tree to the target element in the DOM, to replace what was initially
@@ -271,11 +281,11 @@ Constructor for a new IsomorphicPageRenderer object.
     in a [`Provider`](https://github.com/reactjs/react-redux/blob/master/docs/api.md#provider-store)
     component with a state store created with the given reducer.
 *   `containerElementId`: Optional, the ID for the container element into which the `pageComponent`
-    will be rendered. The `render` function that you'll pass to the `clientMain` method will need
+    will be rendered. The `render` function that you'll pass to the `getInitialHtml` method will need
     to make sure the generated HTML uses this same ID for that element. For convenience, this
     value will be passed in to the render function as part of the context. The default value is `'container'`.
 *   `initialStateElementId`: Optional, the ID for the element into which the encoded initial state will
-    be embedded. Unlike `containerElementId`, the render function passed to `clientMain` doesn't need
+    be embedded. Unlike `containerElementId`, the render function passed to `getInitialHtml` doesn't need
     to render this directly, the `renderEmbeddableState` method will generate this and pass it to
     `render` in the `embeddableState` context value. The default value is `'initial-state'`.
 
@@ -284,19 +294,19 @@ Constructor for a new IsomorphicPageRenderer object.
 Invoked to render the the initial HTML content of the page. This will create a redux state store
 with the reducer function passed to the constructor, initialize it by calling the `dispatchSetupEvents`
 function, render the object's `pageComponent` inside a react-redux `<Provider>` component with the
-state store attached, encode the state's initial store into an HTML-embeddable string, and finally
+state store attached, encode the stores's initial state into an HTML-embeddable string, and finally
 pass the generated content to the provided `render` function to actually generate the HTML.
 
 Returns a Promise that will fulfill with the generated HTML content, or reject on error.
 
-*   `dispatchSetupEvents(dispatch) -> Promise<*>`: Optional, a function that will be called with the
+*   `dispatchSetupEvents(dispatch) -> [Promise<*>]`: Optional, a function that will be called with the
     [`dispatch`](http://redux.js.org/docs/api/Store.html#dispatch) method of the constructed
     state store, ostensibly to dispatch any actions required to setup the state store for
     the initial render. It can return synchronously, or return a _thenable_ if there is
     asynchronous work that needs to complete before the store is setup.
-    Of not given, then no initialization of the state store will be done beyond what is done by the
+    If not given, then no initialization of the state store will be done beyond what is done by the
     `createStore` method itself.
-*   `render({pageContent, embeddableState, initialState, containerElementId, initialStateElementId})`:
+*   `render({pageContent, embeddableState, initialState, containerElementId, initialStateElementId}) -> {Promise<String>|String}`:
     A function that will take the generated content and actually produce the HTML for the page as a string.
     For instance, this might be a compiled template function. It will be invoked with a context object having
     the following properties:
@@ -314,6 +324,8 @@ Returns a Promise that will fulfill with the generated HTML content, or reject o
     *   `initialStateElementId`: The ID of the element into which the initial state has been embedded.
         Your `render` function probably doesn't actually need this, since it is already included in
         the `embeddableState`.
+    The `render` function should return the generated HTML as a string, or a _thenable_ that fulfills
+    with the generated HTML.
 
 #### `::getCurrentState({[dispatchSetupEvents]}) -> Promise<Object>`
 
@@ -344,8 +356,8 @@ to do anything else with it.
 
     This is useful if you want to set some state flag to indicate that you're rendering on the client. For instance,
     you may choose not to render some interactive content on the server side, or render them using traditional HTML
-    forms, to support users who do not have JavaScript. For users who do support JavaScript, this function will be
-    invoked to set the "on-client" flag in the state and the client-side rendering can replace these with
+    forms, to support users who do not have JavaScript. For users who _do_ support JavaScript, this function will be
+    invoked to set the "on-client" flag in the state, and the client-side rendering can replace these with
     more dynamic controls, such as forms that submit via AJAX.
 
     Note that this function won't be invoked until _after_ the component is rendered with the initial state loaded
@@ -355,5 +367,4 @@ to do anything else with it.
     connection.
 
     This is an async-safe function, so it can return synchronously or return a thenable if there are any actions
-    that we need to wait for. The Promise returned by the `clientMain` method won't settle until the returned
-    thenable settles.
+    that we need to wait for. The fulfillment value will be ignored, but the Promise returned by the `clientMain` method won't settle until the returned thenable settles.
