@@ -324,6 +324,7 @@ Returns a Promise that will fulfill with the generated HTML content, or reject o
     *   `initialStateElementId`: The ID of the element into which the initial state has been embedded.
         Your `render` function probably doesn't actually need this, since it is already included in
         the `embeddableState`.
+
     The `render` function should return the generated HTML as a string, or a _thenable_ that fulfills
     with the generated HTML.
 
