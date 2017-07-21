@@ -6,6 +6,14 @@ primarily focused around [React](https://facebook.github.io/react/) interfaces w
 a [redux](http://redux.js.org/) state-store (but not limited to either of these, if
 you extend the class).
 
+## Installation
+
+Install from npm:
+
+```console
+> npm install --save isomorphic-page-renderer
+```
+
 ## Example Usage
 
 The following snippets provide a very abbreviated sample of how you might use

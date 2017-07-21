@@ -1,6 +1,6 @@
 {
   "name": "isomorphic-page-renderer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A utility for more easily rendering a page initially on the server then taking over on the client side.",
   "main": "dist/src/index.js",
   "scripts": {
