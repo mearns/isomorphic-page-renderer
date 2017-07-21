@@ -1,6 +1,6 @@
 {
   "name": "isomorphic-page-renderer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A utility for more easily rendering a page initially on the server then taking over on the client side.",
   "main": "dist/src/index.js",
   "scripts": {
@@ -18,10 +18,15 @@
     "isomorphic",
     "web",
     "html",
-    "react"
+    "react",
+    "redux"
   ],
-  "author": "Brian Mearns <twitter:@3aa70848>",
+  "author": "Brian Mearns <https://github.com/mearns>",
   "license": "MIT",
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/mearns/isomorphic-page-renderer"
+  },
   "babel": {
     "presets": [
       "es2015",
