@@ -1,6 +1,6 @@
 {
   "name": "isomorphic-page-renderer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A utility for more easily rendering a page initially on the server then taking over on the client side.",
   "main": "dist/src/index.js",
   "scripts": {
@@ -24,12 +24,12 @@
   "author": "Brian Mearns <https://github.com/mearns>",
   "license": "MIT",
   "repository": {
-    "type" : "git",
-    "url" : "https://github.com/mearns/isomorphic-page-renderer"
+    "type": "git",
+    "url": "https://github.com/mearns/isomorphic-page-renderer"
   },
   "babel": {
     "presets": [
-      "es2015",
+      "env",
       "react"
     ],
     "plugins": [
@@ -61,7 +61,7 @@
     "babel-eslint": "7.2.3",
     "babel-plugin-transform-object-assign": "6.22.0",
     "babel-plugin-transform-object-rest-spread": "6.23.0",
-    "babel-preset-es2015": "6.24.1",
+    "babel-preset-env": "1.6.1",
     "babel-preset-react": "6.24.1",
     "eslint": "4.2.0",
     "eslint-plugin-react": "7.1.0",
